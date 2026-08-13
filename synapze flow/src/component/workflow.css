@@ -1,0 +1,73 @@
+/* src/components/graph/CommitNode.css */
+
+.commit-node-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Label above the circle */
+.commit-label-container {
+  position: absolute;
+  top: -38px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.commit-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.commit-id {
+  font-size: 10px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* The White Circle Node */
+.commit-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: #ffffff;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  cursor: pointer;
+}
+
+.commit-circle:hover {
+  transform: scale(1.05);
+  border-color: #3b82f6;
+}
+
+/* HEAD Badge */
+.head-badge {
+  position: absolute;
+  top: -12px;
+  background-color: #374151;
+  color: #ffffff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+/* Custom Handle Styling */
+/* Hides React Flow's default gray dots while keeping connection points active */
+.custom-handle {
+  background: transparent !important;
+  border: none !important;
+  width: 1px !important;
+  height: 1px !important;
+}
