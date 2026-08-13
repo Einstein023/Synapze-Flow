@@ -1,0 +1,21 @@
+/* Base styles every button gets */
+.btn {
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  background-color: #3b82f6;
+  color: white;
+  transition: background-color 0.2s ease;
+}
+
+.btn:hover {
+  background-color: #2563eb;
+}
+
+/* Custom override class passed as a prop */
+.workflow-action-btn {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  font-size: 14px;
+}

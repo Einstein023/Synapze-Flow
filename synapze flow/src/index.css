@@ -5,3 +5,26 @@ body{
   padding: 0;
   font-family: 'Inter', sans-serif;
 }
+.main-container {
+  min-height: 100vh;
+  background-color: #f3f4f6; /* Equivalent to bg-gray-100 */
+  padding: 32px;             /* Equivalent to p-8 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* Page Title */
+.title {
+  font-size: 24px;          /* Equivalent to text-2xl */
+  font-weight: 700;         /* Equivalent to font-bold */
+  color: #1f2937;           /* Equivalent to text-gray-800 */
+  margin-bottom: 24px;      /* Equivalent to mb-6 */
+  margin-top: 0;
+}
+
+/* Max-width container wrapper for Workflow canvas */
+.canvas-wrapper {
+  width: 100%;
+  max-width: 1024px;        /* Equivalent to max-w-5xl */
+}
