@@ -7,9 +7,9 @@ function App() {
       <h1 className="title">
         Synapze Flow - Git Commit Visualizer
       </h1>
-      <div className="canvas-wrapper">
+      {/* <div className="canvas-wrapper"> */}
         <Workflow />
-      </div>
+      {/* </div> */}
     </main>
   )
 }

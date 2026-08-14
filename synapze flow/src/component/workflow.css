@@ -93,3 +93,19 @@
   font-size: 14px;
   outline: none;
 }
+.branch-badge {
+  background-color: #1e293b;
+  color: #f8fafc;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: monospace;
+}
+
+.branch-btn {
+  background-color: #8b5cf6 !important; /* Purple for branch creation */
+}
+
+.branch-btn:hover {
+  background-color: #7c3aed !important;
+}

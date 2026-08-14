@@ -11,9 +11,9 @@ const nodeTypes = {
 };
 
 const initialNodes = [
-  { id: '1', position: { x: 200, y: 0 }, type: 'commitNode', data: { label: 'Initial Commit', commitId: 'abc123', isHead: false } },
-  { id: '2', position: { x: 400, y: 0 }, type: 'commitNode', data: { label: 'Second Commit', commitId: 'def456', isHead: false } },
-  { id: '3', position: { x: 600, y: 0 }, type: 'commitNode', data: { label: 'Third Commit', commitId: 'ghi789', isHead: true } },
+  { id: '1', position: { x: 100, y: 100 }, type: 'commitNode', data: { label: 'Initial Commit', commitId: 'abc123', isHead: false, branch: 'main' } },
+  { id: '2', position: { x: 280, y: 100 }, type: 'commitNode', data: { label: 'Second Commit', commitId: 'def456', isHead: false, branch: 'main' } },
+  { id: '3', position: { x: 460, y: 100 }, type: 'commitNode', data: { label: 'Third Commit', commitId: 'ghi789', isHead: true, branch: 'main' } },
 ];
 
 const initialEdges = [
@@ -23,12 +23,7 @@ const initialEdges = [
     target: '2',
     type: 'smoothstep',
     style: { stroke: '#3b82f6', strokeWidth: 3 },
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 20,
-      height: 20,
-      color: '#3b82f6',
-    },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#3b82f6' },
   },
   {
     id: 'e2-3',
@@ -36,12 +31,7 @@ const initialEdges = [
     target: '3',
     type: 'smoothstep',
     style: { stroke: '#3b82f6', strokeWidth: 3 },
-    markerEnd: {
-      type: MarkerType.ArrowClosed,
-      width: 20,
-      height: 20,
-      color: '#3b82f6',
-    },
+    markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#3b82f6' },
   },
 ];
 
@@ -50,17 +40,59 @@ export default function Workflow() {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const [commitMessage, setCommitMessage] = useState('');
+  const [branchName, setBranchName] = useState('');
+  const [currentBranch, setCurrentBranch] = useState('main');
 
-  const handleButtonClick = (e) => {
-    // 1. Prevent default form submit (stops page refresh)
+ // FIND AVAILABLE SPACE FOR BRANCHES AND COMMITS
+const getAvailablePosition = (targetX, targetY, existingNodes) => {
+  const nodeSpaceY = 120;
+  let adjustedY = targetY;
+
+  // Checks if any node is within 50px of the candidate coordinates (x, y)
+  const isOccupied = (x, y) =>
+    existingNodes.some(
+      (node) =>
+        Math.abs(node.position.x - x) < 50 && Math.abs(node.position.y - y) < 50
+    );
+
+  // Keep stepping down vertically until a free slot is found
+  while (isOccupied(targetX, adjustedY)) {
+    adjustedY += nodeSpaceY;
+  }
+
+  return { x: targetX, y: adjustedY };
+};
+  const getHeadNode = () => nodes.find((node) => node.data.isHead) || nodes[nodes.length - 1];
+
+
+  // HANDLE NODE CLICK TO SET HEAD AND BRANCH
+  const handleNodeClick = (event, clickedNode) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) => ({
+        ...node,
+        data: {
+          ...node.data,
+          isHead: node.id === clickedNode.id,
+        },
+      }))
+    );
+
+    if (clickedNode.data.branch && clickedNode.data.branch !== currentBranch) {
+      setCurrentBranch(clickedNode.data.branch);
+    }
+  };
+
+  const handleAddCommit = (e) => {
     e.preventDefault();
 
+    const activeHead = getHeadNode();
     const shortHash = Math.random().toString(16).substring(2, 9);
     const newCommitId = `c-${shortHash}`;
 
-    const lastNode = nodes[nodes.length - 1];
-    const newX = lastNode ? lastNode.position.x + 180 : 200;
-    const newY = lastNode ? lastNode.position.y : 0;
+    const defaultX = activeHead ? activeHead.position.x + 180 : 100;
+    const defaultY = activeHead ? activeHead.position.y : 100;
+
+    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
 
     const newNode = {
       id: newCommitId,
@@ -69,57 +101,88 @@ export default function Workflow() {
       data: {
         label: commitMessage.trim() || 'New Commit',
         commitId: shortHash,
-        isHead: true, // Newest commit becomes HEAD
+        isHead: true,
+        branch: currentBranch,
       },
     };
 
-    // 2. Remove isHead from previous nodes so only the latest node has HEAD
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          isHead: false,
-        },
-      })).concat(newNode)
+    setNodes((prev) =>
+      prev.map((n) => ({ ...n, data: { ...n.data, isHead: false } })).concat(newNode)
     );
 
-    // 3. Connect edge safely only if a previous node exists
-    if (lastNode) {
+    if (activeHead) {
+      const edgeColor = currentBranch === 'main' ? '#3b82f6' : '#8b5cf6';
+
       const newEdge = {
-        id: `e${lastNode.id}-${newNode.id}`,
-        source: lastNode.id,
+        id: `e${activeHead.id}-${newNode.id}`,
+        source: activeHead.id,
         target: newNode.id,
         type: 'smoothstep',
-        style: { stroke: '#3b82f6', strokeWidth: 3 },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: '#3b82f6',
-        },
+        style: { stroke: edgeColor, strokeWidth: 3 },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: edgeColor },
       };
       setEdges((eds) => [...eds, newEdge]);
     }
 
-    // 4. Clear input box
     setCommitMessage('');
   };
 
+  const handleCreateBranch = () => {
+    if (!branchName.trim()) return;
+
+    const activeHead = getHeadNode();
+    const shortHash = Math.random().toString(16).substring(2, 9);
+    const newCommitId = `c-${shortHash}`;
+
+    // Prevent overlapping parallel branches off the same parent
+    const existingBranchOffset = nodes.filter(
+      (n) => activeHead && n.position.x === activeHead.position.x + 180
+    ).length;
+
+    const defaultX = activeHead ? activeHead.position.x + 180 : 100;
+    const defaultY = activeHead ? activeHead.position.y + 120 * (existingBranchOffset + 1) : 220;
+
+    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes)
+
+    const newBranchCommit = {
+      id: newCommitId,
+      position: { x: newX, y: newY },
+      type: 'commitNode',
+      data: {
+        label: `Start ${branchName.trim()}`,
+        commitId: shortHash,
+        isHead: true,
+        branch: branchName.trim(),
+      },
+    };
+
+    setNodes((prev) =>
+      prev.map((n) => ({ ...n, data: { ...n.data, isHead: false } })).concat(newBranchCommit)
+    );
+
+    if (activeHead) {
+      const branchEdge = {
+        id: `e${activeHead.id}-${newBranchCommit.id}`,
+        source: activeHead.id,
+        target: newBranchCommit.id,
+        type: 'smoothstep',
+        style: { stroke: '#8b5cf6', strokeWidth: 3 },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
+      };
+      setEdges((eds) => [...eds, branchEdge]);
+    }
+
+    setCurrentBranch(branchName.trim());
+    setBranchName('');
+  };
+
   return (
-    <div
-      style={{
-        height: '90vh',
-        width: '100%',
-        backgroundColor: '#f0f0f0',
-        padding: '20px',
-        boxSizing: 'border-box',
-      }}
-    >
+    <div style={{ height: '90vh', width: '100%', backgroundColor: '#f0f0f0', padding: '20px', boxSizing: 'border-box' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        onNodeClick={handleNodeClick}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         fitView
@@ -128,18 +191,39 @@ export default function Workflow() {
         <Controls />
 
         <Panel position="top-center" className="workflow-panel">
-          <form onSubmit={handleButtonClick}>
-            <input
-              type="text"
-              placeholder="Enter commit message"
-              value={commitMessage}
-              onChange={(e) => setCommitMessage(e.target.value)}
-              className="commit-input"
-            />
-            <Button type="submit" className="workflow-action-button">
-              Add Commit
-            </Button>
-          </form>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span className="branch-badge">
+              <strong>{currentBranch}</strong>
+            </span>
+
+            <form onSubmit={handleAddCommit} style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                placeholder="Commit message..."
+                value={commitMessage}
+                onChange={(e) => setCommitMessage(e.target.value)}
+                className="commit-input"
+              />
+              <Button type="submit" className="workflow-action-button">
+                Commit
+              </Button>
+            </form>
+
+            <div style={{ borderLeft: '2px solid #ccc', height: '24px' }} />
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <input
+                type="text"
+                placeholder="New branch name..."
+                value={branchName}
+                onChange={(e) => setBranchName(e.target.value)}
+                className="commit-input"
+              />
+              <Button type="button" onClick={handleCreateBranch} className="workflow-action-button branch-btn">
+                New Branch
+              </Button>
+            </div>
+          </div>
         </Panel>
       </ReactFlow>
     </div>

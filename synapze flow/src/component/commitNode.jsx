@@ -1,9 +1,9 @@
-// src/components/graph/CommitNode.jsx
 import React from 'react';
 import { Handle, Position } from '@xyflow/react';
 import './workflow';
 
 export default function CommitNode({ data }) {
+  
   return (
     <div className="commit-node-wrapper">
       {/* Top Text Labels */}
