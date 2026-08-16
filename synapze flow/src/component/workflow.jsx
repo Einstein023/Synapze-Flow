@@ -44,53 +44,36 @@ export default function Workflow() {
   const [currentBranch, setCurrentBranch] = useState('main');
   const [sourceBranchToMerge, setSourceBranchToMerge] = useState('');
 
-  // FIND AVAILABLE SPACE FOR NEW NODE TO AVOID OVERLAPPING
-  const getAvailablePosition = (targetX, targetY, existingNodes) => {
-    const nodeSpaceY = 120;
-    let adjustedY = targetY;
-
-    const isOccupied = (x, y) =>
-      existingNodes.some(
-        (node) => Math.abs(node.position.x - x) < 50 && Math.abs(node.position.y - y) < 50
-      );
-
-    while (isOccupied(targetX, adjustedY)) {
-      adjustedY += nodeSpaceY;
-    }
-
-    return { x: targetX, y: adjustedY };
+  // Fixed Swimlane Y-level based on branch index
+  const getBranchY = (branch, currentNodes = nodes) => {
+    if (branch === 'main') return 100;
+    const branches = Array.from(new Set(currentNodes.map((n) => n.data.branch)));
+    let index = branches.indexOf(branch);
+    if (index === -1) index = branches.length; // Handle new branch assignment
+    return 100 + index * 140;
   };
 
-  const getHeadNode = () => nodes.find((node) => node.data.isHead) || nodes[nodes.length - 1];
+  // Get HEAD node for a specific branch
+  const getHeadNode = (branch = currentBranch) =>
+    nodes.find((n) => n.data.branch === branch && n.data.isHead) ||
+    nodes.filter((n) => n.data.branch === branch).pop();
 
-  // HANDLE NODE CLICK TO SET HEAD AND BRANCH
   const handleNodeClick = (event, clickedNode) => {
-    // setNodes((prevNodes) =>
-    //   prevNodes.map((node) => ({
-    //     ...node,
-    //     data: {
-    //       ...node.data,
-    //       isHead: node.id === clickedNode.id,
-    //     },
-    //   }))
-    // );
-
     if (clickedNode.data.branch && clickedNode.data.branch !== currentBranch) {
       setCurrentBranch(clickedNode.data.branch);
     }
   };
 
+  // Add Commit
   const handleAddCommit = (e) => {
     e.preventDefault();
 
-    const activeHead = getHeadNode();
+    const activeHead = getHeadNode(currentBranch);
     const shortHash = Math.random().toString(16).substring(2, 9);
     const newCommitId = `c-${shortHash}`;
 
-    const defaultX = activeHead ? activeHead.position.x + 180 : 100;
-    const defaultY = activeHead ? activeHead.position.y : 100;
-
-    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
+    const newX = activeHead ? activeHead.position.x + 180 : 100;
+    const newY = getBranchY(currentBranch);
 
     const newNode = {
       id: newCommitId,
@@ -105,100 +88,93 @@ export default function Workflow() {
     };
 
     setNodes((prev) =>
-  prev
-    .map((node) => 
-      node.data.branch === currentBranch 
-        ? { ...node, data: { ...node.data, isHead: false } }
-        : node
-    )
-    .concat(newNode)
-);
+      prev
+        .map((n) => (n.data.branch === currentBranch ? { ...n, data: { ...n.data, isHead: false } } : n))
+        .concat(newNode)
+    );
 
     if (activeHead) {
       const edgeColor = currentBranch === 'main' ? '#3b82f6' : '#8b5cf6';
-
-      const newEdge = {
-        id: `e${activeHead.id}-${newNode.id}`,
-        source: activeHead.id,
-        target: newNode.id,
-        type: 'smoothstep',
-        style: { stroke: edgeColor, strokeWidth: 3 },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: edgeColor },
-      };
-      setEdges((eds) => [...eds, newEdge]);
+      setEdges((eds) => [
+        ...eds,
+        {
+          id: `e${activeHead.id}-${newNode.id}`,
+          source: activeHead.id,
+          target: newNode.id,
+          type: 'smoothstep',
+          style: { stroke: edgeColor, strokeWidth: 3 },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: edgeColor },
+        },
+      ]);
     }
 
     setCommitMessage('');
   };
 
+  // Create Branch
   const handleCreateBranch = () => {
-    if (!branchName.trim()) return;
+    const trimmedBranch = branchName.trim();
+    if (!trimmedBranch) return;
 
-    const activeHead = getHeadNode();
+    const activeHead = getHeadNode(currentBranch);
     const shortHash = Math.random().toString(16).substring(2, 9);
     const newCommitId = `c-${shortHash}`;
 
-    const existingBranchOffset = nodes.filter(
-      (n) => activeHead && n.position.x === activeHead.position.x + 180
-    ).length;
-
-    const defaultX = activeHead ? activeHead.position.x + 180 : 100;
-    const defaultY = activeHead ? activeHead.position.y + 120 * (existingBranchOffset + 1) : 220;
-
-    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
+    const newX = activeHead ? activeHead.position.x + 180 : 100;
+    const newY = getBranchY(trimmedBranch);
 
     const newBranchCommit = {
       id: newCommitId,
       position: { x: newX, y: newY },
       type: 'commitNode',
       data: {
-        label: `Start ${branchName.trim()}`,
+        label: `Start ${trimmedBranch}`,
         commitId: shortHash,
         isHead: true,
-        branch: branchName.trim(),
+        branch: trimmedBranch,
       },
     };
 
     setNodes((prev) =>
-  prev
-    .map((node) => 
-      node.data.branch === branchName.trim() 
-        ? { ...node, data: { ...node.data, isHead: false } }
-        : node
-    )
-    .concat(newBranchCommit)
-);
+      prev
+        .map((n) => (n.data.branch === trimmedBranch ? { ...n, data: { ...n.data, isHead: false } } : n))
+        .concat(newBranchCommit)
+    );
 
     if (activeHead) {
-      const branchEdge = {
-        id: `e${activeHead.id}-${newBranchCommit.id}`,
-        source: activeHead.id,
-        target: newBranchCommit.id,
-        type: 'smoothstep',
-        style: { stroke: '#8b5cf6', strokeWidth: 3 },
-        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
-      };
-      setEdges((eds) => [...eds, branchEdge]);
+      setEdges((eds) => [
+        ...eds,
+        {
+          id: `e${activeHead.id}-${newBranchCommit.id}`,
+          source: activeHead.id,
+          target: newBranchCommit.id,
+          type: 'smoothstep',
+          style: { stroke: '#8b5cf6', strokeWidth: 3 },
+          markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
+        },
+      ]);
     }
 
-    setCurrentBranch(branchName.trim());
+    setCurrentBranch(trimmedBranch);
     setBranchName('');
   };
 
+  // Merge Branches
   const handleMergeBranches = (sourceBranch, targetBranch) => {
-    if (!sourceBranch || sourceBranch === targetBranch) return alert('Please select a valid source branch to merge into the target branch.');
+    if (!sourceBranch || sourceBranch === targetBranch) return;
 
-    const sourceHead = nodes.find((node) => node.data.branch === sourceBranch && node.data.isHead);
-    const targetHead = nodes.find((node) => node.data.branch === targetBranch && node.data.isHead);
+    const sourceHead = getHeadNode(sourceBranch);
+    const targetHead = getHeadNode(targetBranch);
 
-    if (!sourceHead || !targetHead) return alert('Both branches must have a HEAD commit to perform a merge.');
+    if (!sourceHead || !targetHead) return alert('Both branches must have a valid HEAD node.');
 
     const shortHash = Math.random().toString(16).substring(2, 9);
     const newCommitId = `c-${shortHash}`;
 
-    const defaultX = targetHead.position.x + 180;
-    const defaultY = targetHead.position.y;
-    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
+    // Place merge commit further right than both source and target tips
+    const maxX = Math.max(sourceHead.position.x, targetHead.position.x);
+    const newX = maxX + 180;
+    const newY = getBranchY(targetBranch);
 
     const newMergeCommit = {
       id: newCommitId,
@@ -213,17 +189,14 @@ export default function Workflow() {
     };
 
     setNodes((prev) =>
-  prev
-    .map((node) => 
-      node.data.branch === targetBranch 
-        ? { ...node, data: { ...node.data, isHead: false } }
-        : node
-    )
-    .concat(newMergeCommit)
-);
+      prev
+        .map((n) => (n.data.branch === targetBranch ? { ...n, data: { ...n.data, isHead: false } } : n))
+        .concat(newMergeCommit)
+    );
 
     const edgeColor = targetBranch === 'main' ? '#3b82f6' : '#8b5cf6';
-    const newEdges = [
+    setEdges((eds) => [
+      ...eds,
       {
         id: `e${targetHead.id}-${newCommitId}`,
         source: targetHead.id,
@@ -237,12 +210,11 @@ export default function Workflow() {
         source: sourceHead.id,
         target: newCommitId,
         type: 'smoothstep',
+        animated: true,
         style: { stroke: '#8b5cf6', strokeWidth: 3, strokeDasharray: '5 5' },
         markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
       },
-    ];
-
-    setEdges((eds) => [...eds, ...newEdges]);
+    ]);
   };
 
   return (
@@ -313,11 +285,7 @@ export default function Workflow() {
               <Button
                 type="button"
                 onClick={() => {
-                  if (!branchName && !sourceBranchToMerge) {
-                    alert('Please enter a branch name and select a branch to merge.');
-                    return;
-                  }
-                  handleMergeBranches(branchName || currentBranch, sourceBranchToMerge);
+                  handleMergeBranches(sourceBranchToMerge, currentBranch);
                   setSourceBranchToMerge('');
                 }}
                 className="workflow-action-button merge-btn"
@@ -326,6 +294,20 @@ export default function Workflow() {
                 Merge into {currentBranch}
               </Button>
             </div>
+          </div>
+        </Panel>
+
+        {/* On-Canvas Legend */}
+        <Panel position="bottom-left" style={{ background: '#fff', padding: '10px 14px', borderRadius: '8px', border: '1px solid #ddd', fontSize: '12px' }}>
+          <div style={{ fontWeight: 'bold', marginBottom: '6px' }}>Graph Legend</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '50%' }} /> Main Line
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ width: '12px', height: '12px', background: '#8b5cf6', borderRadius: '50%' }} /> Feature Branch
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ width: '20px', height: '0', borderTop: '2px dashed #8b5cf6' }} /> Merge Arrow
           </div>
         </Panel>
       </ReactFlow>
