@@ -1,4 +1,4 @@
-import { ReactFlow, MarkerType, Background, useNodesState, useEdgesState, Panel, Controls } from '@xyflow/react';
+import { ReactFlow, MarkerType, Background, useNodesState, useEdgesState, Panel, Controls, MiniMap } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './workflow.css';
 import CommitNode from './commitNode';
@@ -42,40 +42,38 @@ export default function Workflow() {
   const [commitMessage, setCommitMessage] = useState('');
   const [branchName, setBranchName] = useState('');
   const [currentBranch, setCurrentBranch] = useState('main');
+  const [sourceBranchToMerge, setSourceBranchToMerge] = useState('');
 
- // FIND AVAILABLE SPACE FOR BRANCHES AND COMMITS
-const getAvailablePosition = (targetX, targetY, existingNodes) => {
-  const nodeSpaceY = 120;
-  let adjustedY = targetY;
+  // FIND AVAILABLE SPACE FOR NEW NODE TO AVOID OVERLAPPING
+  const getAvailablePosition = (targetX, targetY, existingNodes) => {
+    const nodeSpaceY = 120;
+    let adjustedY = targetY;
 
-  // Checks if any node is within 50px of the candidate coordinates (x, y)
-  const isOccupied = (x, y) =>
-    existingNodes.some(
-      (node) =>
-        Math.abs(node.position.x - x) < 50 && Math.abs(node.position.y - y) < 50
-    );
+    const isOccupied = (x, y) =>
+      existingNodes.some(
+        (node) => Math.abs(node.position.x - x) < 50 && Math.abs(node.position.y - y) < 50
+      );
 
-  // Keep stepping down vertically until a free slot is found
-  while (isOccupied(targetX, adjustedY)) {
-    adjustedY += nodeSpaceY;
-  }
+    while (isOccupied(targetX, adjustedY)) {
+      adjustedY += nodeSpaceY;
+    }
 
-  return { x: targetX, y: adjustedY };
-};
+    return { x: targetX, y: adjustedY };
+  };
+
   const getHeadNode = () => nodes.find((node) => node.data.isHead) || nodes[nodes.length - 1];
-
 
   // HANDLE NODE CLICK TO SET HEAD AND BRANCH
   const handleNodeClick = (event, clickedNode) => {
-    setNodes((prevNodes) =>
-      prevNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          isHead: node.id === clickedNode.id,
-        },
-      }))
-    );
+    // setNodes((prevNodes) =>
+    //   prevNodes.map((node) => ({
+    //     ...node,
+    //     data: {
+    //       ...node.data,
+    //       isHead: node.id === clickedNode.id,
+    //     },
+    //   }))
+    // );
 
     if (clickedNode.data.branch && clickedNode.data.branch !== currentBranch) {
       setCurrentBranch(clickedNode.data.branch);
@@ -107,8 +105,14 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
     };
 
     setNodes((prev) =>
-      prev.map((n) => ({ ...n, data: { ...n.data, isHead: false } })).concat(newNode)
-    );
+  prev
+    .map((node) => 
+      node.data.branch === currentBranch 
+        ? { ...node, data: { ...node.data, isHead: false } }
+        : node
+    )
+    .concat(newNode)
+);
 
     if (activeHead) {
       const edgeColor = currentBranch === 'main' ? '#3b82f6' : '#8b5cf6';
@@ -134,7 +138,6 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
     const shortHash = Math.random().toString(16).substring(2, 9);
     const newCommitId = `c-${shortHash}`;
 
-    // Prevent overlapping parallel branches off the same parent
     const existingBranchOffset = nodes.filter(
       (n) => activeHead && n.position.x === activeHead.position.x + 180
     ).length;
@@ -142,7 +145,7 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
     const defaultX = activeHead ? activeHead.position.x + 180 : 100;
     const defaultY = activeHead ? activeHead.position.y + 120 * (existingBranchOffset + 1) : 220;
 
-    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes)
+    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
 
     const newBranchCommit = {
       id: newCommitId,
@@ -157,8 +160,14 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
     };
 
     setNodes((prev) =>
-      prev.map((n) => ({ ...n, data: { ...n.data, isHead: false } })).concat(newBranchCommit)
-    );
+  prev
+    .map((node) => 
+      node.data.branch === branchName.trim() 
+        ? { ...node, data: { ...node.data, isHead: false } }
+        : node
+    )
+    .concat(newBranchCommit)
+);
 
     if (activeHead) {
       const branchEdge = {
@@ -176,6 +185,66 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
     setBranchName('');
   };
 
+  const handleMergeBranches = (sourceBranch, targetBranch) => {
+    if (!sourceBranch || sourceBranch === targetBranch) return alert('Please select a valid source branch to merge into the target branch.');
+
+    const sourceHead = nodes.find((node) => node.data.branch === sourceBranch && node.data.isHead);
+    const targetHead = nodes.find((node) => node.data.branch === targetBranch && node.data.isHead);
+
+    if (!sourceHead || !targetHead) return alert('Both branches must have a HEAD commit to perform a merge.');
+
+    const shortHash = Math.random().toString(16).substring(2, 9);
+    const newCommitId = `c-${shortHash}`;
+
+    const defaultX = targetHead.position.x + 180;
+    const defaultY = targetHead.position.y;
+    const { x: newX, y: newY } = getAvailablePosition(defaultX, defaultY, nodes);
+
+    const newMergeCommit = {
+      id: newCommitId,
+      position: { x: newX, y: newY },
+      type: 'commitNode',
+      data: {
+        label: `Merge ${sourceBranch} into ${targetBranch}`,
+        commitId: shortHash,
+        isHead: true,
+        branch: targetBranch,
+      },
+    };
+
+    setNodes((prev) =>
+  prev
+    .map((node) => 
+      node.data.branch === targetBranch 
+        ? { ...node, data: { ...node.data, isHead: false } }
+        : node
+    )
+    .concat(newMergeCommit)
+);
+
+    const edgeColor = targetBranch === 'main' ? '#3b82f6' : '#8b5cf6';
+    const newEdges = [
+      {
+        id: `e${targetHead.id}-${newCommitId}`,
+        source: targetHead.id,
+        target: newCommitId,
+        type: 'smoothstep',
+        style: { stroke: edgeColor, strokeWidth: 3 },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: edgeColor },
+      },
+      {
+        id: `e${sourceHead.id}-${newCommitId}`,
+        source: sourceHead.id,
+        target: newCommitId,
+        type: 'smoothstep',
+        style: { stroke: '#8b5cf6', strokeWidth: 3, strokeDasharray: '5 5' },
+        markerEnd: { type: MarkerType.ArrowClosed, width: 20, height: 20, color: '#8b5cf6' },
+      },
+    ];
+
+    setEdges((eds) => [...eds, ...newEdges]);
+  };
+
   return (
     <div style={{ height: '90vh', width: '100%', backgroundColor: '#f0f0f0', padding: '20px', boxSizing: 'border-box' }}>
       <ReactFlow
@@ -189,7 +258,7 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
       >
         <Background />
         <Controls />
-
+        <MiniMap nodeColor={(node) => (node.data.branch === 'main' ? '#3b82f6' : '#8b5cf6')} />
         <Panel position="top-center" className="workflow-panel">
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <span className="branch-badge">
@@ -221,6 +290,40 @@ const getAvailablePosition = (targetX, targetY, existingNodes) => {
               />
               <Button type="button" onClick={handleCreateBranch} className="workflow-action-button branch-btn">
                 New Branch
+              </Button>
+            </div>
+
+            <div style={{ borderLeft: '2px solid #ccc', height: '24px' }} />
+
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                className="branch-option"
+                value={sourceBranchToMerge}
+                onChange={(e) => setSourceBranchToMerge(e.target.value)}
+              >
+                <option value="">Select Branch to Merge</option>
+                {Array.from(new Set(nodes.map((node) => node.data.branch)))
+                  .filter((branch) => branch !== currentBranch)
+                  .map((branch) => (
+                    <option key={branch} value={branch}>
+                      {branch}
+                    </option>
+                  ))}
+              </select>
+              <Button
+                type="button"
+                onClick={() => {
+                  if (!branchName && !sourceBranchToMerge) {
+                    alert('Please enter a branch name and select a branch to merge.');
+                    return;
+                  }
+                  handleMergeBranches(branchName || currentBranch, sourceBranchToMerge);
+                  setSourceBranchToMerge('');
+                }}
+                className="workflow-action-button merge-btn"
+                disabled={!sourceBranchToMerge}
+              >
+                Merge into {currentBranch}
               </Button>
             </div>
           </div>
